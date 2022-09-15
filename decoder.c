@@ -33,7 +33,6 @@ fprintf (stderr,
 "===================================================================\n"
 );
 }
-
 /*
  * main
  *
@@ -62,7 +61,6 @@ fprintf (stderr,
  * Returns:
  *    0
  */
-
 int main (int argc, char * argv[]){
 
    FILE * file_speech, *file_analysis;
