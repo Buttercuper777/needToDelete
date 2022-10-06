@@ -1,29 +1,14 @@
 
-===================================================================
- TS 26.104
- REL-5 	V5.4.0 2004-03
- REL-6 	V6.1.0 2004-03
- REL-7 	V7.0.0 2007-06
- REL-8 	V8.0.0 2008-12
- REL-9 	V9.0.0 2008-12
- REL-10 V10.0.0 2010-03
- REL-11 V11.0.0 2012-09
- REL-12 V12.0.0 2014-09
- REL-13 V13.0.0 2015-09
- 
- REL-14 V14.0.0 2017-03
- REL-15 V15.0.0 2018-06
- REL-16 V16.0.0 2018-09
 
- 3GPP AMR Floating-point Speech Codec
+===================================================================
+  3GPP AMR Wideband Floating-point Speech Codec
 ===================================================================
 
-
-This readme.txt shortly explains the compilation and use of the AMR floating 
+This readme.txt shortly explains the compilation and use of the AMR-WB floating 
 point C-code. The package contains C-source files for the AMR floating-point 
-speech encoder and optimized fixed-point speech decoder. The optimized 
-fixed-point speech decoder is bit-exact with 3GPP TS 26.073 fixed-point 
-speech decoder version 7.0.0.
+speech encoder and fast fixed-point speech decoder. The fast fixed-point 
+speech decoder is bit-exact with 3GPP TS 26.173 fixed-point speech decoder since
+version 7.0.0.
 
 COMPILING THE SOFTWARE
 ======================
@@ -34,51 +19,60 @@ this format can be found in RFC 3267 "Real-Time Transport Protocol(RTP) Payload
 Format and File Storage Format for the Adaptive Multi-Rate (AMR) and Adaptive
 Multi-Rate Wideband (AMR-WB) Audio Codecs", sections 5.1 and 5.3.
 
-If you want to compile a package with an output compatible with the existing 
-3GPP AMR fixed-point C-code and its file format, define "ETSI" 
-during compiling (in the compiler's command line). Hence the output 
-of the encoder and the input of the decoder will use the ETSI "word"-
-format (one bit per word) used by the official 3GPP AMR fixed-point codec.
+You can compile a package with an output compatible with the AMR-WB IF2 format
+specified in the 3GPP specification TS 26.201 "Speech Codec speech processing
+functions; AMR Wideband Speech Codec; Frame Structure" by defining "IF2" during
+compiling.
 
-If you want to compile a package with an output compatible with the AMR IF2
-format of the 3GPP specification TS 26.101 "Mandatory speech processing
-functions; AMR speech codec frame structure", defining "IF2" during compiling.
-
-NOTE: When using the ETSI stream format the user must take care that the mode index
-and the frame type are valid, else the decoder will crash. There is no error 
-protection using this format.
-
-For the VAD Option 1 define VAD=VAD1 and for the VAD Option 2 use
-VAD=VAD2. The default is VAD1.
-
-Makefiles for gcc and Microsoft C++ version 6.0 are included in this package.
-Using MS VC++ makefile, command line is: 
-
-nmake /f makefile.win32 CFG=ETSI VAD=VAD1
+File typedef.h has definitions of numeric datatypes. You must change 
+these according your platform. The default datatypes are defined for IA-32 
+architecture.
 
 When compiling the encoder, you have to compile the files:
 
+enc_acelp.c
+enc_dtx.c
+enc_gain.c
+enc_if.c
+enc_lpc.c
+enc_main.c
+enc_rom.c
+enc_util.c
 encoder.c
-interf_enc.c
-sp_enc.c
+if_rom.c
 
-interf_enc.h
-interf_rom.h
-rom_enc.h
-sp_enc.h
-typedef.h
+enc.h
+enc_acelp.h
+enc_dtx.h
+enc_gain.h
+enc_if.h
+enc_lpc.h
+enc_main.h
+enc_util.h
+if_rom.c
 
 When compiling the decoder, you have to compile files:
 
-sp_dec.c
+dec_acelp.c
+dec_dtx.c
+dec_gain.c
+dec_if.c
+dec_lpc.c
+dec_main.c
+dec_rom.c
+dec_util.c
 decoder.c
-interf_dec.c
+if_rom.c
 
-interf_dec.h
-interf_rom.h
-rom_dec.h
-sp_dec.h
-typedef.h
+dec.h
+dec_acelp.h
+dec_dtx.h
+dec_gain.h
+dec_if.h
+dec_lpc.h
+dec_main.h
+dec_util.h
+if_rom.h
 
 RUNNING THE SOFTWARE
 ====================
@@ -89,44 +83,36 @@ encoder [-dtx] mode speech_file bitstream_file
 or
 encoder [-dtx] -modefile=mode_file speech_file bitstream_file
 
-<mode> = MR475, MR515, MR59, MR67, MR74, MR795, MR102 or MR122
+<mode> :  (0)  (1)   (2)   (3)   (4)   (5)   (6)   (7)   (8)
+bitrate: 6.60 8.85 12.65 14.25 15.85 18.25 19.85 23.05 23.85 kbit/s
 
 [mode_file] is optional and the format is the same as in the mode file 
-of the corresponding 3GPP TS 26.073 fixed-point C-code. The file is 
-an ascii-file containing one mode per line.
+of the corresponding 3GPP TS 26.173 fixed-point C-code v.5.4.0. 
+The file is an ascii-file containing one mode per line.
 
 Usage of the "decoder" program is as follows: 
 
 decoder speech_file synthesis_file
 
+
 HISTORY
 =======
 
-       v. 3.0.0	 24.8.00
-       v. 3.1.0	 19.12.00
-       v. 4.0.0	 19.12.00
-R99    V. 3.2.0  13.06.01
-REL-4  V. 4.1.0  13.06.01
-R99    V. 3.3.0  01.09.01
-REL-4  V. 4.2.0  01.09.01
-R99    V. 3.4.0  08.02.02
-REL-4  V. 4.3.0  08.02.02
-R99    V. 3.5.0  14.01.03
-REL-4  V. 4.4.0	 14.01.03
-REL-5  V. 5.1.0  14.01.03
-REL-4  V. 4.5.0	 12.06.03
-REL-5  V. 5.2.0	 12.06.03
-REL-5  V. 5.3.0  17.12.03
-REL-6  V. 6.0.0  17.12.03
-REL-5  V. 5.4.0  05.03.04
-REL-6  V. 6.1.0  05.03.04
-REL-7  V. 7.0.0	05.06.07
-REL-8  V. 8.0.0	10.12.08
-REL-9  V. 9.0.0	10.12.09
-REL-10 V10.0.0  2010-03
-REL-11 V11.0.0  2012-09
-REL-12 V12.0.0  2014-09
-REL-13 V13.0.0  2015-12
-REL-14 V14.0.0  2017-03
-REL-15 V15.0.0  2018-06
-REL-16 V16.0.0  2018-09
+v. 5.0.0	05.03.02
+v. 5.1.0	18.02.03
+v. 5.2.0	27.08.03
+v. 5.3.0	14.12.04
+v. 6.0.0	14.12.04
+v. 7.0.0	20.03.07
+v. 8.0.0	10.12.08
+v. 9.0.0	10.12.09
+v. 10.0.0	20.03.11
+v. 11.0.0	12.09.12
+v. 12.0.0	17.09.14
+v. 12.1.0	13.03.15
+v. 13.0.0	11.12.15
+v. 13.1.0	17.03.16
+v. 14.0.0	17.03.17
+v. 15.0.0	15.06.18
+v. 16.0.0	14.12.18
+

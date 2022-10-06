@@ -1,159 +1,146 @@
 /*
- * ===================================================================
- *  TS 26.104
- *  REL-5 V5.4.0 2004-03
- *  REL-6 V6.1.0 2004-03
- *  REL-15 V15.1.0 2018-07
- *  3GPP AMR Floating-point Speech Codec
- * ===================================================================
- *
+ *===================================================================
+ *  3GPP AMR Wideband Floating-point Speech Codec
+ *===================================================================
  */
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <memory.h>
-#include "interf_dec.h"
-#include "sp_dec.h"
+#include <stdlib.h>
 #include "typedef.h"
+#include "dec_if.h"
 
-#ifndef ETSI
 #ifndef IF2
 #include <string.h>
-#define AMR_MAGIC_NUMBER "#!AMR\n"
-#endif
+#define AMRWB_MAGIC_NUMBER "#!AMR-WB\n"
 #endif
 
-void Copyright(void){
-fprintf (stderr,
-"===================================================================\n"
-" TS 26.104                                                         \n"
-" REL-5 V5.4.0 2004-03                                              \n"
-" REL-6 V6.1.0 2004-03                                              \n"
-" 3GPP AMR Floating-point Speech Decoder                            \n"
-"===================================================================\n"
-);
-}
 /*
- * main
+ * DECODER.C
  *
+ * Main program of the AMR WB ACELP wideband decoder.
  *
- * Function:
- *    Speech decoder main program
+ *    Usage : decoder bitstream_file synth_file
  *
- *    Usage: decoder bitstream_file synthesis_file
+ *    Format for bitstream_file:
+ *        Described in TS26.201
  *
- *    Format for ETSI bitstream file:
- *       1 word (2-byte) for the TX frame type
- *       244 words (2-byte) containing 244 bits.
- *          Bit 0 = 0x0000 and Bit 1 = 0x0001
- *       1 word (2-byte) for the mode indication
- *       4 words for future use, currently written as zero
+ *    Format for synth_file:
+ *      Synthesis is written to a binary file of 16 bits data.
  *
- *    Format for 3GPP bitstream file:
- *       Holds mode information and bits packed to octets.
- *       Size is from 1 byte to 31 bytes.
- *
- *    Format for synthesis_file:
- *       Speech is written to a 16 bit 8kHz file.
- *
- *    ETSI bitstream file format is defined using ETSI as preprocessor
- *    definition
- * Returns:
- *    0
  */
-int main (int argc, char * argv[]){
 
-   FILE * file_speech, *file_analysis;
+extern const UWord8 block_size[];
 
-   short synth[160];
-   int frames = 0;
-   int * destate;
-   int read_size;
-#ifndef ETSI
-   unsigned char analysis[32];
-   enum Mode dec_mode;
-#ifdef IF2
-   short block_size[16]={ 12, 13, 15, 17, 18, 20, 25, 30, 5, 0, 0, 0, 0, 0, 0, 0 };
-#else
-   char magic[8];
-   short block_size[16]={ 12, 13, 15, 17, 19, 20, 26, 31, 5, 0, 0, 0, 0, 0, 0, 0 };
-#endif
-#else
-   short analysis[250];
-#endif
+int main(int argc, char *argv[])
+{
+    FILE *f_serial;                        /* File of serial bits for transmission  */
+    FILE *f_synth;                         /* File of speech data                   */
 
-   /* Process command line options */
-   if (argc == 3){
+    Word16 synth[L_FRAME16k];              /* Buffer for speech @ 16kHz             */
+    UWord8 serial[NB_SERIAL_MAX];
+    Word16 mode;
+    Word32 frame;
 
-      file_speech = fopen(argv[2], "wb");
-      if (file_speech == NULL){
-         fprintf ( stderr, "%s%s%s\n","Use: ",argv[0], " input.file output.file " );
-         return 1;
-      }
-
-      file_analysis = fopen(argv[1], "rb");
-      if (file_analysis == NULL){
-         fprintf ( stderr, "%s%s%s\n","Use: ",argv[0], " input.file output.file " );
-         fclose(file_speech);
-         return 1;
-      }
-
-   }
-   else {
-      fprintf ( stderr, "%s%s%s\n","Use: ",argv[0], " input.file output.file " );
-      return 1;
-   }
-   Copyright();
-   /* init decoder */
-   destate = Decoder_Interface_init();
-
-#ifndef ETSI
 #ifndef IF2
-   /* read and verify magic number */
-   fread( magic, sizeof( char ), strlen( AMR_MAGIC_NUMBER ), file_analysis );
-   if ( strncmp( magic, AMR_MAGIC_NUMBER, strlen( AMR_MAGIC_NUMBER ) ) ) {
-	   fprintf( stderr, "%s%s\n", "Invalid magic number: ", magic );
-	   fclose( file_speech );
-	   fclose( file_analysis );
-	   return 1;
-   }
+	char magic[16];
 #endif
-#endif
+    void *st;
 
-#ifndef ETSI
+    fprintf(stderr, "\n");
+	   fprintf(stderr, "===================================================================\n");
+	   fprintf(stderr, " 3GPP AMR-WB Floating-point Speech Decoder, v7.0.0, Mar 20, 2007\n");
+	   fprintf(stderr, "===================================================================\n");
+   fprintf(stderr, "\n");
 
-   /* find mode, read file */
-   while (fread(analysis, sizeof (unsigned char), 1, file_analysis ) > 0)
-   {
+    /*
+     * Read passed arguments and open in/out files
+     */
+    if (argc != 3)
+    {
+        fprintf(stderr, "Usage : decoder  bitstream_file  synth_file\n");
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Format for bitstream_file:\n");
 #ifdef IF2
-      dec_mode = analysis[0] & 0x000F;
+		fprintf(stderr, "  Described in TS26.201.\n");
 #else
-      dec_mode = (analysis[0] >> 3) & 0x000F;
+		fprintf(stderr, "  Described in RFC 3267 (Sections 5.1 and 5.3).\n");
 #endif
-	  read_size = block_size[dec_mode];
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Format for synth_file:\n");
+        fprintf(stderr, "  Synthesis is written to a binary file of 16 bits data.\n");
+        fprintf(stderr, "\n");
+        exit(0);
+    }
 
-      fread(&analysis[1], sizeof (char), read_size, file_analysis );
-#else
+    /* Open file for synthesis and packed serial stream */
+    if ((f_serial = fopen(argv[1], "rb")) == NULL)
+    {
+        fprintf(stderr, "Input file '%s' does not exist !!\n", argv[1]);
+        exit(0);
+    }
+    else
+    {
+        fprintf(stderr, "Input bitstream file:   %s\n", argv[1]);
+    }
 
-   read_size = 250;
-   /* read file */
-   while (fread(analysis, sizeof (short), read_size, file_analysis ) > 0)
+    if ((f_synth = fopen(argv[2], "wb")) == NULL)
+    {
+        fprintf(stderr, "Cannot open file '%s' !!\n", argv[2]);
+        exit(0);
+    }
+    else
+    {
+        fprintf(stderr, "Synthesis speech file:   %s\n", argv[2]);
+    }
+
+    /*
+     * Initialization of decoder
+     */
+    st = D_IF_init();
+
+#ifndef IF2
+   /* read magic number */
+   fread(magic, sizeof(char), strlen(AMRWB_MAGIC_NUMBER), f_serial);
+
+   /* verify magic number */
+   if (strncmp(magic, AMRWB_MAGIC_NUMBER, strlen(AMRWB_MAGIC_NUMBER)))
    {
+	   fprintf(stderr, "%s%s\n", "Invalid magic number: ", magic);
+	   fclose(f_serial);
+	   fclose(f_synth);
+	   exit(0);
+   }
 #endif
 
-      frames ++;
+    /*
+     * Loop for each "L_FRAME" speech data
+     */
+    fprintf(stderr, "\n --- Running ---\n");
 
-      /* call decoder */
-      Decoder_Interface_Decode(destate, analysis, synth, 0);
+    frame = 0;
+    while (fread(serial, sizeof (UWord8), 1, f_serial ) > 0)
+    {
+#ifdef IF2
+       mode = (Word16)(serial[0] >> 4);
+#else
+	   mode = (Word16)((serial[0] >> 3) & 0x0F);
+#endif
+	   fread(&serial[1], sizeof (UWord8), block_size[mode] - 1, f_serial );
 
-      fwrite( synth, sizeof (short), 160, file_speech );
-   }
+	   frame++;
 
-   Decoder_Interface_exit(destate);
+	   fprintf(stderr, " Decoding frame: %ld\r", frame);
 
-   fclose(file_speech);
-   fclose(file_analysis);
-   fprintf ( stderr, "\n%s%i%s\n","Decoded ", frames, " frames.");
+	   D_IF_decode( st, serial, synth, _good_frame);
 
-   return 0;
+	   fwrite(synth, sizeof(Word16), L_FRAME16k, f_synth);
+	   fflush(f_synth);
+    }
+
+    D_IF_exit(st);
+
+    fclose(f_serial);
+    fclose(f_synth);
+
+    return 0;
 }
